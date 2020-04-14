@@ -1,0 +1,55 @@
+#!/bin/sh
+
+##############################################################################
+# If a PUID/PGID enviroment variable exists, use those values for the `uid`
+# and `gid` when executing scripts, otherwise change the dev user's uid and
+# gid to match the user that owns the project directory and run a command as
+# that user. If a ~/.ssh directory exists and it's not owned by root then
+# switch and run as that user instead in order to take advantage of public key
+# authentication.
+##############################################################################
+
+stat_dir="/app"
+
+# if the PUID environment variable exists, assume that is the preferred user id,
+# otherwise use the $stat_dir
+if [ "" != "$PUID" ]; then
+    uid=$PUID
+else
+    uid=$(stat -c '%u' $stat_dir)
+fi
+
+# if the PGID environment variable exists, assume that is the preferred group id,
+# otherwise use the $stat_dir
+if [ "" != "$PGID" ]; then
+    gid=$PGID
+else
+    gid=$(stat -c '%g' $stat_dir)
+fi
+
+# Create a dev user to use as the directory owner
+useradd --user-group --shell /bin/sh dev
+echo "dev:password" | sudo chpasswd
+
+# if gid/uid are note root then update the www-data user with the specified UID/GID values
+#if [ $uid -ne 0 ]
+#then
+    groupmod -g $gid -o dev > /dev/null 2>&1
+    usermod -u $uid -o dev > /dev/null 2>&1
+#fi
+
+chown -R dev:dev /home/dev/ > /dev/null 2>&1
+
+# Ensure the correct user is available in the sudoers file (if the
+# specified UID already existed in the image)
+echo "dev ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Load specific image script
+if [ -f "/entrypoint-addon.sh" ]
+then
+    /entrypoint-addon.sh
+fi
+
+# Launch the command ($@) as the user 'dev'
+# -E parameter keeps all the defined environment variables but does not work with NPM ... so removed it
+sudo -u dev $@

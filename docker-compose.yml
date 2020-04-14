@@ -1,0 +1,47 @@
+version: '2'
+
+services:
+  #### Front Stack
+  nginx:
+    image: nginx:${NGINX_VERSION}
+    volumes:
+      - ./docker/containers/nginx/conf/vhost.conf:/etc/nginx/sites-enabled/
+    
+  redis:
+    image: redis:alpine
+    ports:
+      - 6379:6379
+
+  #### User stack
+  learning_apache:
+    image: httpd:${HTTPD_VERSION}
+    volumes:
+      - ./docker/containers/apache/conf/vhost-learning.conf:/etc/apache2/sites-enabled/000-default.conf
+      - ./docker/containers/apache/conf/httpd.conf:/usr/local/apache2/conf/httpd.conf
+      - ./docker/logs/apache:/var/logs/apache2/
+      - ./src:/var/www/html
+      - /etc/hosts:/var/www/hosts
+      - ./docker/shell:/var/www/shell
+    ports:
+      - 8110:80
+    links:
+      - learning_php-fpm
+
+  learning_php-fpm:
+    build: docker/containers/php-fpm
+    volumes:
+      - ./src:/var/www/html
+    links:
+      - learning_mysql
+      - redis
+
+  learning_mysql:
+    image: mysql:${MYSQL_VERSION}
+    environment:
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_DATABASE: 'learning'
+    volumes:
+      - learningdata:/var/lib/mysql
+
+volumes:
+  learningdata:

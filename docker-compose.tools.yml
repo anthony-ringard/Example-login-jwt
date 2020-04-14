@@ -1,0 +1,26 @@
+version: '2'
+
+services:
+  php:
+    build: docker/containers/php
+    volumes:
+      - .:/app
+      - ~/.composer:/home/dev/.composer
+      - ./src:/app
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8090:8080
+
+  mailcatcher:
+    image: yappabe/mailcatcher
+    ports:
+      - 1025:1025
+      - 1080:1080
+
+  newman:
+    build: docker/containers/newman
+    volumes:
+      - ./src:/etc/newman
